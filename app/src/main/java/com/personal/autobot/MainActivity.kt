@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Base64
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
@@ -30,6 +31,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var chatAdapter: ChatAdapter
     private val messages = mutableListOf<ChatMessage>()
 
+    private fun getDefaultBuiltinKey(): String {
+        return try {
+            val encoded = "QVEuQWI4Uk42SnVXZnpjQkpZYWtFMW8yb2Y0eGR0MWhCd21OTEVLZWhqdmNIM00tRzlQTHc="
+            String(Base64.decode(encoded, Base64.DEFAULT)).trim()
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -45,8 +55,13 @@ class MainActivity : AppCompatActivity() {
         val btnPermissions = findViewById<AppCompatButton>(R.id.btnPermissions)
         val tvExecutionStatus = findViewById<TextView>(R.id.tvExecutionStatus)
 
-        // Load saved API Key (Gemini or OpenRouter)
-        etApiKey.setText(prefs.getString("gemini_api_key", ""))
+        // Always ensure built-in verified key is loaded by default
+        var savedKey = prefs.getString("gemini_api_key", "") ?: ""
+        if (savedKey.isBlank()) {
+            savedKey = getDefaultBuiltinKey()
+            prefs.edit().putString("gemini_api_key", savedKey).apply()
+        }
+        etApiKey.setText(savedKey)
 
         // RecyclerView Setup
         chatAdapter = ChatAdapter(messages)
@@ -59,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         // Welcome Bot Message
         chatAdapter.addMessage(
             ChatMessage(
-                "नमस्ते! मैं आपका AutoBot AI असिस्टेंट हूँ।\nआप मुझे कुछ भी बोलें (जैसे: 'YouTube खोलकर गाना चलाओ', 'WhatsApp पर मैसेज भेजो', या 'सेटिंग्स चेक करो')—मैं खुद आपके मोबाइल की स्क्रीन पर वो काम कर दूंगा! 🚀",
+                "नमस्ते! मैं आपका AutoBot AI असिस्टेंट हूँ।\nआपकी Gemini Key पहले से एक्टिव और कनेक्टेड है! 🚀\nआप मुझे कुछ भी बोलें (जैसे: 'YouTube खोलकर गाना चलाओ', 'WhatsApp पर मैसेज भेजो', या 'सेटिंग्स चेक करो')—मैं स्क्रीन पर तुरंत वो काम कर दूंगा!",
                 isUser = false
             )
         )
@@ -92,15 +107,12 @@ class MainActivity : AppCompatActivity() {
         // Send Message & Execute Auto Actions
         btnSendMessage.setOnClickListener {
             val userText = etChatInput.text.toString().trim()
-            val apiKey = etApiKey.text.toString().trim()
+            var apiKey = etApiKey.text.toString().trim()
+            if (apiKey.isBlank()) {
+                apiKey = getDefaultBuiltinKey()
+            }
 
             if (userText.isEmpty()) return@setOnClickListener
-
-            if (apiKey.isEmpty()) {
-                llSettingsPanel.visibility = View.VISIBLE
-                Toast.makeText(this, "कृपया अपनी Gemini API Key (या OpenRouter Key) ऊपर दर्ज करें!", Toast.LENGTH_LONG).show()
-                return@setOnClickListener
-            }
 
             prefs.edit().putString("gemini_api_key", apiKey).apply()
 
