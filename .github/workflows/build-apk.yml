@@ -24,22 +24,37 @@ jobs:
       with:
         gradle-version: 8.4
 
-    - name: Build Debug APK
-      run: gradle assembleDebug --stacktrace
+    - name: Generate or Ensure Permanent Keystore
+      run: |
+        mkdir -p keystore
+        if [ ! -f keystore/release.jks ]; then
+          keytool -genkeypair -v \
+            -keystore keystore/release.jks \
+            -alias autobot_key \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 20000 \
+            -storepass autobot_secret_key_pass \
+            -keypass autobot_secret_key_pass \
+            -dname "CN=AutoBot, OU=Personal, O=Personal, L=India, ST=India, C=IN"
+        fi
 
-    - name: Upload Debug APK Artifact
+    - name: Build Signed APK
+      run: gradle assembleRelease --stacktrace
+
+    - name: Upload Signed APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: AutoBot-Debug-APK
-        path: app/build/outputs/apk/debug/*.apk
+        name: AutoBot-Signed-APK
+        path: app/build/outputs/apk/release/*.apk
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
       with:
-        tag_name: v1.0.0
-        name: AutoBot Controller v1.0.0
-        body: "Automated Build: AutoBot Android Full Controller APK"
-        files: app/build/outputs/apk/debug/*.apk
+        tag_name: v3.1.0
+        name: AutoBot Controller v3.1.0 (Fixed Signing Key)
+        body: "Permanent Keystore Build: Allows seamless in-place updates without uninstalling or losing data."
+        files: app/build/outputs/apk/release/*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

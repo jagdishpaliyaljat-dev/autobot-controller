@@ -11,15 +11,28 @@ android {
         applicationId = "com.personal.autobot"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "2.0-AI"
+        versionCode = 3
+        versionName = "3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("${rootDir}/keystore/release.jks")
+            storePassword = "autobot_secret_key_pass"
+            keyAlias = "autobot_key"
+            keyPassword = "autobot_secret_key_pass"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("release")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
