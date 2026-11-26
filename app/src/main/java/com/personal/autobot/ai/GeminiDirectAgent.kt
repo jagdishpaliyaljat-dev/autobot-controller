@@ -53,7 +53,7 @@ class GeminiDirectAgent(private val apiKey: String) {
             {"reply": "...", "steps": [...]}
         """.trimIndent()
 
-        // If apiKey starts with sk-or, use OpenRouter endpoint, else use Official Google Gemini API
+        // If apiKey starts with sk-or, use OpenRouter, else use Official Google Gemini API
         if (apiKey.startsWith("sk-or")) {
             return@withContext queryOpenRouter(systemPrompt, userGoal)
         } else {
@@ -62,46 +62,64 @@ class GeminiDirectAgent(private val apiKey: String) {
     }
 
     private fun queryGeminiDirect(systemPrompt: String, userGoal: String): Pair<String, List<ActionStep>> {
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey"
+        // Updated to gemini-3.8-flash (or fallback gemini-1.5-flash) as requested by Google API
+        val modelsToTry = listOf("gemini-3.8-flash", "gemini-1.5-flash", "gemini-1.5-pro")
 
-        val jsonBody = JSONObject().apply {
-            val contents = JSONArray().apply {
-                put(JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("text", "$systemPrompt\n\nUser Message: $userGoal")
+        for (modelName in modelsToTry) {
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
+
+            val jsonBody = JSONObject().apply {
+                val contents = JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("role", "user")
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", "$systemPrompt\n\nUser Message: $userGoal")
+                            })
                         })
                     })
+                }
+                put("contents", contents)
+                put("generationConfig", JSONObject().apply {
+                    put("temperature", 0.1)
+                    put("responseMimeType", "application/json")
                 })
             }
-            put("contents", contents)
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.1)
-                put("responseMimeType", "application/json")
-            })
-        }
 
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Content-Type", "application/json")
-            .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-            .build()
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Content-Type", "application/json")
+                .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
+                .build()
 
-        try {
-            client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: return Pair("API से कोई जवाब नहीं मिला।", emptyList())
-                val json = JSONObject(body)
-                val candidates = json.optJSONArray("candidates") ?: return Pair("Gemini Error: $body", emptyList())
-                if (candidates.length() == 0) return Pair("No response candidate", emptyList())
+            try {
+                client.newCall(request).execute().use { response ->
+                    val body = response.body?.string() ?: return@use
+                    val json = JSONObject(body)
 
-                val text = candidates.getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
-                return parseJsonResponse(text)
+                    if (json.has("error")) {
+                        val errObj = json.getJSONObject("error")
+                        val code = errObj.optInt("code", 0)
+                        if (code == 404) {
+                            // Try next model in list
+                            return@use
+                        }
+                        return Pair("Gemini Error: ${errObj.optString("message")}", emptyList())
+                    }
+
+                    val candidates = json.optJSONArray("candidates") ?: return@use
+                    if (candidates.length() == 0) return@use
+
+                    val text = candidates.getJSONObject(0).getJSONObject("content")
+                        .getJSONArray("parts").getJSONObject(0).getString("text")
+                    return parseJsonResponse(text)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return Pair("एरर: ${e.message}", emptyList())
         }
+
+        return Pair("Gemini API Error: Models available नहीं हैं या API Key अमान्य है।", emptyList())
     }
 
     private fun queryOpenRouter(systemPrompt: String, userGoal: String): Pair<String, List<ActionStep>> {
@@ -167,7 +185,7 @@ class GeminiDirectAgent(private val apiKey: String) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            reply = "रिस्पॉन्स पार्स करने में समस्या: $clean"
+            reply = "रिस्पॉन्स: $clean"
         }
         return Pair(reply, list)
     }
