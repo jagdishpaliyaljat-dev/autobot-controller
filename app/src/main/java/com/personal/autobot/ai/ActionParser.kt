@@ -24,7 +24,8 @@ class ActionParser {
                     when {
                         // 1. OPEN / LAUNCH
                         rawAction.contains("OPEN") || rawAction.contains("LAUNCH") || rawAction.contains("START") -> {
-                            val resolvedPkg = resolvePackage(rawPkg, originalPrompt)
+                            var appPkg = obj.optString("package", obj.optString("app", obj.optString("target", "")))
+                            val resolvedPkg = resolvePackage(appPkg, originalPrompt)
                             list.add(ActionStep(action = "launch", target = resolvedPkg, durationMs = 3000))
                         }
 
@@ -34,44 +35,59 @@ class ActionParser {
                             list.add(ActionStep(action = "delay", durationMs = (durationSec * 1000).toLong()))
                         }
 
-                        // 3. SEARCH or PLAY MEDIA
-                        rawAction.contains("SEARCH") || rawAction.contains("PLAY") -> {
-                            var query = obj.optString("query", obj.optString("target", ""))
-                            if (query.isEmpty() || query == "null") query = "trending music songs"
+                        // 3. SEARCH CONTACT / SEARCH IN APP
+                        rawAction.contains("SEARCH") -> {
+                            var query = obj.optString("query", obj.optString("target", obj.optString("contact", "")))
+                            if (query.isEmpty() || query == "null") query = extractContactOrQuery(originalPrompt)
                             
-                            // Only launch YouTube if no app has been launched AND the user specifically asked for media/video/music
-                            if (list.none { it.action == "launch" } && isMediaPrompt(originalPrompt)) {
+                            // If user asked for WhatsApp message
+                            if (originalPrompt.lowercase().contains("whatsapp") && list.none { it.action == "launch" }) {
+                                list.add(ActionStep(action = "launch", target = "com.whatsapp", durationMs = 3000))
+                            } else if (list.none { it.action == "launch" } && isMediaPrompt(originalPrompt)) {
                                 list.add(ActionStep(action = "launch", target = "com.google.android.youtube", durationMs = 3500))
                             }
-                            // Search tap
-                            list.add(ActionStep(action = "click_text", target = "Search", durationMs = 2000))
-                            // Type query
+
+                            // Tap search icon / search button
+                            list.add(ActionStep(action = "click_text", target = "Search", durationMs = 1500))
+                            // Type query (e.g. Om)
                             list.add(ActionStep(action = "type_text", target = "Search", text = query, durationMs = 2000))
-                            // Press search
-                            list.add(ActionStep(action = "click_xy", x = 1000f, y = 2200f, durationMs = 3000))
-                            // Tap first video result
-                            list.add(ActionStep(action = "click_xy", x = 500f, y = 700f, durationMs = 2000))
+                            // Click first result (contact or item)
+                            list.add(ActionStep(action = "click_xy", x = 500f, y = 500f, durationMs = 2000))
                         }
 
-                        // 4. CLICK FIRST RESULT
+                        // 4. SEND MESSAGE / TYPE MESSAGE
+                        rawAction.contains("SEND") || rawAction.contains("MESSAGE") -> {
+                            var msg = obj.optString("message", obj.optString("text", ""))
+                            if (msg.isEmpty() || msg == "null") msg = extractMessageBody(originalPrompt)
+                            if (msg.isNotEmpty()) {
+                                // Type message in chat field
+                                list.add(ActionStep(action = "type_text", target = "Message", text = msg, durationMs = 1500))
+                                // Click Send button
+                                list.add(ActionStep(action = "click_text", target = "Send", durationMs = 1500))
+                                // Fallback send button click (bottom right coordinates)
+                                list.add(ActionStep(action = "click_xy", x = 1000f, y = 2250f, durationMs = 1000))
+                            }
+                        }
+
+                        // 5. CLICK FIRST RESULT
                         rawAction.contains("FIRST") || rawAction.contains("RESULT") -> {
                             list.add(ActionStep(action = "click_xy", x = 500f, y = 700f, durationMs = 2000))
                         }
 
-                        // 5. CLICK
+                        // 6. CLICK
                         rawAction.contains("CLICK") -> {
                             val target = obj.optString("target", obj.optString("text", ""))
                             list.add(ActionStep(action = "click_text", target = target, durationMs = 1500))
                         }
 
-                        // 6. TYPE
+                        // 7. TYPE
                         rawAction.contains("TYPE") -> {
                             val target = obj.optString("target", "")
-                            val text = obj.optString("text", obj.optString("value", ""))
+                            val text = obj.optString("text", obj.optString("value", obj.optString("message", "")))
                             list.add(ActionStep(action = "type_text", target = target, text = text, durationMs = 1500))
                         }
 
-                        // 7. BACK / HOME
+                        // 8. BACK / HOME
                         rawAction.contains("BACK") -> list.add(ActionStep(action = "back", durationMs = 1000))
                         rawAction.contains("HOME") -> list.add(ActionStep(action = "home", durationMs = 1000))
                     }
@@ -92,6 +108,23 @@ class ActionParser {
             }
 
             return Pair(reply, list)
+        }
+
+        private fun extractContactOrQuery(prompt: String): String {
+            val parts = prompt.split(" ")
+            for (i in parts.indices) {
+                if (parts[i].equals("massage", true) || parts[i].equals("message", true) || parts[i].equals("msg", true)) {
+                    if (i + 1 < parts.size) return parts[i + 1]
+                }
+            }
+            return "Om"
+        }
+
+        private fun extractMessageBody(prompt: String): String {
+            val regex = Regex("""(?:message|massage|msg)\s+\S+\s*(.*)""", RegexOption.IGNORE_CASE)
+            val match = regex.find(prompt)
+            val body = match?.groupValues?.get(1)?.trim() ?: ""
+            return if (body.isNotEmpty()) body else "❤️"
         }
 
         private fun isMediaPrompt(prompt: String): Boolean {

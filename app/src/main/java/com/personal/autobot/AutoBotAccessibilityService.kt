@@ -255,12 +255,51 @@ class AutoBotAccessibilityService : AccessibilityService() {
                         delay(step.durationMs.coerceAtLeast(2000))
                     }
                     "type_text" -> {
-                        if (!inputText(step.target, step.text)) {
-                            val focused = rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-                            val arguments = Bundle().apply {
-                                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, step.text)
+                        val text = step.text
+                        var typed = false
+                        // 1. Try finding input field by target
+                        val rootNode = rootInActiveWindow
+                        if (rootNode != null && step.target.isNotBlank()) {
+                            val nodes = rootNode.findAccessibilityNodeInfosByText(step.target)
+                            for (node in nodes) {
+                                val arguments = Bundle().apply {
+                                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                                }
+                                if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
+                                    typed = true
+                                    break
+                                }
                             }
-                            focused?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+                        }
+                        // 2. Try currently focused input node
+                        if (!typed && rootNode != null) {
+                            val focused = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                            val arguments = Bundle().apply {
+                                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                            }
+                            if (focused != null && focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
+                                typed = true
+                            }
+                        }
+                        // 3. Fallback: Search any editable node in window
+                        if (!typed && rootNode != null) {
+                            val queue = ArrayDeque<AccessibilityNodeInfo>()
+                            queue.add(rootNode)
+                            while (queue.isNotEmpty()) {
+                                val node = queue.removeFirst()
+                                if (node.isEditable) {
+                                    val arguments = Bundle().apply {
+                                        putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                                    }
+                                    if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
+                                        typed = true
+                                        break
+                                    }
+                                }
+                                for (i in 0 until node.childCount) {
+                                    node.getChild(i)?.let { queue.add(it) }
+                                }
+                            }
                         }
                         delay(step.durationMs.coerceAtLeast(2000))
                     }
