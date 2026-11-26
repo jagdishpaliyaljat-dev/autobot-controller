@@ -3,7 +3,7 @@ package com.personal.autobot
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import kotlinx.coroutines.delay
+import com.personal.autobot.ai.ActionStep
 
 class TaskSchedulerReceiver : BroadcastReceiver() {
 
@@ -11,82 +11,27 @@ class TaskSchedulerReceiver : BroadcastReceiver() {
         val service = AutoBotAccessibilityService.instance ?: return
         val targetPackage = intent.getStringExtra("PACKAGE_NAME") ?: "com.google.android.youtube"
 
-        // 1. Launch target app
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPackage)?.apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-        }
-        if (launchIntent != null) {
-            context.startActivity(launchIntent)
-        }
-
-        // 2. Perform automated action steps
         if (targetPackage.contains("youtube")) {
-            executeYouTubeFlow(service)
+            val youtubeSteps = listOf(
+                ActionStep(action = "launch", target = "com.google.android.youtube", durationMs = 4000),
+                ActionStep(action = "click_xy", x = 540f, y = 2180f, durationMs = 2000),
+                ActionStep(action = "click_text", target = "Upload a video", durationMs = 2500),
+                ActionStep(action = "click_xy", x = 200f, y = 600f, durationMs = 2000),
+                ActionStep(action = "click_text", target = "Next", durationMs = 2000),
+                ActionStep(action = "type_text", target = "Add details", text = "Auto Scheduled Video #shorts", durationMs = 2000),
+                ActionStep(action = "click_text", target = "Upload Short", durationMs = 1500)
+            )
+            service.executeAiPlan(youtubeSteps)
         } else {
-            executeInstagramFlow(service)
+            val instaSteps = listOf(
+                ActionStep(action = "launch", target = "com.instagram.android", durationMs = 4000),
+                ActionStep(action = "click_text", target = "New post", durationMs = 2500),
+                ActionStep(action = "click_xy", x = 200f, y = 750f, durationMs = 2000),
+                ActionStep(action = "click_text", target = "Next", durationMs = 2000),
+                ActionStep(action = "click_text", target = "Next", durationMs = 2000),
+                ActionStep(action = "click_text", target = "Share", durationMs = 1500)
+            )
+            service.executeAiPlan(instaSteps)
         }
-    }
-
-    private fun executeYouTubeFlow(service: AutoBotAccessibilityService) {
-        service.runMacroSequence(listOf(
-            {
-                delay(4000)
-                // Center bottom '+' button
-                service.clickAt(540f, 2180f)
-            },
-            {
-                delay(2000)
-                // Click 'Upload a video' or text
-                if (!service.clickByText("Upload a video")) {
-                    service.clickAt(540f, 1800f)
-                }
-            },
-            {
-                delay(2500)
-                // Select first video from gallery thumbnail
-                service.clickAt(200f, 600f)
-            },
-            {
-                delay(2000)
-                service.clickByText("Next")
-            },
-            {
-                delay(2000)
-                service.inputText("Add details", "Auto Uploaded Video #shorts")
-            },
-            {
-                delay(1500)
-                service.clickByText("Upload Short")
-            }
-        ))
-    }
-
-    private fun executeInstagramFlow(service: AutoBotAccessibilityService) {
-        service.runMacroSequence(listOf(
-            {
-                delay(4000)
-                // Instagram '+' button on bottom or top bar
-                if (!service.clickByText("New post")) {
-                    service.clickAt(540f, 2180f)
-                }
-            },
-            {
-                delay(2500)
-                // First media item in grid
-                service.clickAt(200f, 750f)
-            },
-            {
-                delay(2000)
-                service.clickByText("Next")
-            },
-            {
-                delay(2000)
-                service.clickByText("Next")
-            },
-            {
-                delay(2000)
-                service.clickByText("Share")
-            }
-        ))
     }
 }
