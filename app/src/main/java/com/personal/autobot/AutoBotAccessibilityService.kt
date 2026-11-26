@@ -118,23 +118,39 @@ class AutoBotAccessibilityService : AccessibilityService() {
                 when (step.action) {
                     "launch" -> {
                         val launchIntent = packageManager.getLaunchIntentForPackage(step.target)?.apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         }
                         if (launchIntent != null) {
                             startActivity(launchIntent)
                         }
-                        delay(step.durationMs.coerceAtLeast(3000))
+                        delay(step.durationMs.coerceAtLeast(3500))
                     }
                     "click_text" -> {
-                        clickByText(step.target)
+                        if (!clickByText(step.target)) {
+                            // If text not clickable directly, try tap near top right search icon if searching
+                            if (step.target.contains("Search", ignoreCase = true)) {
+                                val metrics = resources.displayMetrics
+                                clickAt(metrics.widthPixels - 120f, 150f)
+                            }
+                        }
                         delay(step.durationMs.coerceAtLeast(1500))
                     }
                     "click_xy" -> {
-                        clickAt(step.x, step.y)
+                        val metrics = resources.displayMetrics
+                        val realX = (step.x / 1080f) * metrics.widthPixels
+                        val realY = (step.y / 2400f) * metrics.heightPixels
+                        clickAt(realX, realY)
                         delay(step.durationMs.coerceAtLeast(1500))
                     }
                     "type_text" -> {
-                        inputText(step.target, step.text)
+                        if (!inputText(step.target, step.text)) {
+                            // Fallback to active focused node
+                            val focused = rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                            val arguments = Bundle().apply {
+                                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, step.text)
+                            }
+                            focused?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+                        }
                         delay(step.durationMs.coerceAtLeast(1500))
                     }
                     "delay" -> {
