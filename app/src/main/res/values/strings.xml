@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AutoBot Controller</string>
+    <string name="service_description">AutoBot Automation Service: Enables scheduled taps, gestures and text inputs across apps.</string>
+</resources>
