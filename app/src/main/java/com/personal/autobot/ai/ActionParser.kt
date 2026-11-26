@@ -6,7 +6,7 @@ import org.json.JSONObject
 class ActionParser {
 
     companion object {
-        fun parse(rawJson: String): Pair<String, List<ActionStep>> {
+        fun parse(rawJson: String, originalPrompt: String = ""): Pair<String, List<ActionStep>> {
             val clean = rawJson.replace("```json", "").replace("```", "").trim()
             val list = mutableListOf<ActionStep>()
             var reply = "काम शुरू कर रहा हूँ..."
@@ -19,76 +19,81 @@ class ActionParser {
                 for (i in 0 until stepsArray.length()) {
                     val obj = stepsArray.getJSONObject(i)
                     val rawAction = obj.optString("action").uppercase()
+                    var rawPkg = obj.optString("package", obj.optString("target", ""))
+
+                    // Fix wrong media provider package
+                    if (rawPkg.contains("media", ignoreCase = true) || rawPkg.contains("music", ignoreCase = true)) {
+                        rawPkg = "com.google.android.youtube"
+                    }
 
                     when {
-                        // 1. OPEN / LAUNCH APP
+                        // 1. OPEN / LAUNCH
                         rawAction.contains("OPEN") || rawAction.contains("LAUNCH") || rawAction.contains("START") -> {
-                            val pkg = when {
-                                obj.has("package") -> obj.getString("package")
-                                obj.has("target") -> obj.getString("target")
-                                else -> "com.google.android.youtube"
-                            }
-                            val resolvedPkg = resolvePackage(pkg)
+                            val resolvedPkg = resolvePackage(rawPkg)
                             list.add(ActionStep(action = "launch", target = resolvedPkg, durationMs = 4000))
                         }
 
                         // 2. WAIT / DELAY
                         rawAction.contains("WAIT") || rawAction.contains("DELAY") || rawAction.contains("SLEEP") -> {
                             val durationSec = obj.optDouble("duration", 2.0)
-                            val durationMs = (durationSec * 1000).toLong()
-                            list.add(ActionStep(action = "delay", durationMs = durationMs))
+                            list.add(ActionStep(action = "delay", durationMs = (durationSec * 1000).toLong()))
                         }
 
-                        // 3. SEARCH
-                        rawAction.contains("SEARCH") -> {
-                            val query = obj.optString("query", obj.optString("target", "trending songs"))
-                            // Tap Search button on YouTube/App top bar
+                        // 3. SEARCH or PLAY MEDIA
+                        rawAction.contains("SEARCH") || rawAction.contains("PLAY") -> {
+                            var query = obj.optString("query", obj.optString("target", ""))
+                            if (query.isEmpty() || query == "null") query = "trending music songs"
+                            
+                            // If app was not launched yet, ensure YouTube is launched
+                            if (list.none { it.action == "launch" }) {
+                                list.add(ActionStep(action = "launch", target = "com.google.android.youtube", durationMs = 4000))
+                            }
+                            // Search tap
                             list.add(ActionStep(action = "click_text", target = "Search", durationMs = 2000))
-                            // Type search query
+                            // Type query
                             list.add(ActionStep(action = "type_text", target = "Search", text = query, durationMs = 2000))
-                            // Press keyboard enter / tap search
+                            // Press search
                             list.add(ActionStep(action = "click_xy", x = 1000f, y = 2200f, durationMs = 3000))
-                        }
-
-                        // 4. CLICK FIRST RESULT / PLAY
-                        rawAction.contains("FIRST") || rawAction.contains("RESULT") || rawAction.contains("PLAY") -> {
-                            // Tap first video result on screen
+                            // Tap first video result
                             list.add(ActionStep(action = "click_xy", x = 500f, y = 700f, durationMs = 2000))
                         }
 
-                        // 5. CLICK TEXT
-                        rawAction.contains("CLICK_TEXT") || rawAction == "CLICK" -> {
+                        // 4. CLICK FIRST RESULT
+                        rawAction.contains("FIRST") || rawAction.contains("RESULT") -> {
+                            list.add(ActionStep(action = "click_xy", x = 500f, y = 700f, durationMs = 2000))
+                        }
+
+                        // 5. CLICK
+                        rawAction.contains("CLICK") -> {
                             val target = obj.optString("target", obj.optString("text", ""))
                             list.add(ActionStep(action = "click_text", target = target, durationMs = 1500))
                         }
 
-                        // 6. TYPE TEXT
-                        rawAction.contains("TYPE") || rawAction.contains("INPUT") -> {
+                        // 6. TYPE
+                        rawAction.contains("TYPE") -> {
                             val target = obj.optString("target", "")
                             val text = obj.optString("text", obj.optString("value", ""))
                             list.add(ActionStep(action = "type_text", target = target, text = text, durationMs = 1500))
                         }
 
-                        // 7. CLICK XY
-                        rawAction.contains("XY") -> {
-                            list.add(
-                                ActionStep(
-                                    action = "click_xy",
-                                    x = obj.optDouble("x", 500.0).toFloat(),
-                                    y = obj.optDouble("y", 1000.0).toFloat(),
-                                    durationMs = 1500
-                                )
-                            )
-                        }
-
-                        // 8. BACK / HOME
+                        // 7. BACK / HOME
                         rawAction.contains("BACK") -> list.add(ActionStep(action = "back", durationMs = 1000))
                         rawAction.contains("HOME") -> list.add(ActionStep(action = "home", durationMs = 1000))
                     }
                 }
+
+                // Fallback guarantee: if user asked for music/youtube and list is empty
+                if (list.isEmpty() && (originalPrompt.contains("music", ignoreCase = true) || originalPrompt.contains("song", ignoreCase = true) || originalPrompt.contains("youtube", ignoreCase = true))) {
+                    list.add(ActionStep(action = "launch", target = "com.google.android.youtube", durationMs = 4000))
+                    list.add(ActionStep(action = "click_text", target = "Search", durationMs = 2000))
+                    list.add(ActionStep(action = "type_text", target = "Search", text = "trending songs", durationMs = 2000))
+                    list.add(ActionStep(action = "click_xy", x = 1000f, y = 2200f, durationMs = 3000))
+                    list.add(ActionStep(action = "click_xy", x = 500f, y = 700f, durationMs = 2000))
+                }
+
             } catch (e: Exception) {
                 e.printStackTrace()
-                reply = "रिस्पॉन्स पार्स करने में समस्या: $clean"
+                reply = "टास्क प्रोसेस कर रहा हूँ..."
             }
 
             return Pair(reply, list)

@@ -92,7 +92,7 @@ class GeminiDirectAgent(private val apiKey: String) {
 
                     val text = candidates.getJSONObject(0).getJSONObject("content")
                         .getJSONArray("parts").getJSONObject(0).getString("text")
-                    return ActionParser.parse(text)
+                    return ActionParser.parse(text, userGoal)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -134,7 +134,7 @@ class GeminiDirectAgent(private val apiKey: String) {
                 if (choices.length() == 0) return Pair("No choices returned", emptyList())
 
                 val rawContent = choices.getJSONObject(0).getJSONObject("message").getString("content")
-                return ActionParser.parse(rawContent)
+                return ActionParser.parse(rawContent, userGoal)
             }
         } catch (e: Exception) {
             e.printStackTrace()
