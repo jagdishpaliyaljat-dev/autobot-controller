@@ -151,16 +151,6 @@ class AutoBotAccessibilityService : AccessibilityService() {
         }
         return false
     }
-        for (node in nodes) {
-            val arguments = Bundle().apply {
-                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, textToEnter)
-            }
-            if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
-                return true
-            }
-        }
-        return false
-    }
 
     fun swipe(startX: Float, startY: Float, endX: Float, endY: Float, durationMs: Long = 300) {
         val path = Path().apply {
