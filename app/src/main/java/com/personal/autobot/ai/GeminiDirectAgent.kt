@@ -19,18 +19,51 @@ class GeminiDirectAgent(private val apiKey: String) {
 
     suspend fun planActionSteps(userGoal: String, screenContext: String): Pair<String, List<ActionStep>> = withContext(Dispatchers.IO) {
         val systemPrompt = """
-            You are AutoBot, an autonomous Android AI assistant.
-            You must control the user's phone to fulfill their request.
+            You are AutoBot, an intelligent and versatile autonomous Android assistant.
+            You can control the user's phone to open ANY requested app (WhatsApp, Camera, Instagram, Chrome, Settings, Calculator, YouTube, Maps, etc.) or perform requested screen actions.
             Screen: [$screenContext]
 
-            Output JSON with "reply" and "steps".
-            Format:
+            INSTRUCTIONS:
+            1. If the user asks to open or do something in an app, determine the correct Android package name for THAT specific app.
+            2. Common apps:
+               - WhatsApp: "com.whatsapp"
+               - Instagram: "com.instagram.android"
+               - Camera: "camera" or "com.google.android.GoogleCamera"
+               - Chrome / Web Browser: "com.android.chrome"
+               - Settings: "com.android.settings"
+               - Calculator: "com.google.android.calculator"
+               - Photos / Gallery: "com.google.android.apps.photos"
+               - Dial / Phone: "com.google.android.dialer"
+               - Maps: "com.google.android.apps.maps"
+               - YouTube / Music: "com.google.android.youtube"
+            3. Do NOT default to YouTube unless the user specifically asks for YouTube, videos, or songs!
+            4. If the user is just saying hello or asking a general question, return an empty steps list [].
+
+            Output ONLY a JSON object with "reply" and "steps".
+            Examples:
+            User: "WhatsApp kholo"
             {
-              "reply": "Friendly explanation in Hindi",
+              "reply": "Main WhatsApp khol raha hoon.",
+              "steps": [
+                 {"action": "OPEN_APP", "package": "com.whatsapp"}
+              ]
+            }
+
+            User: "Camera open karo"
+            {
+              "reply": "Main Camera khol raha hoon.",
+              "steps": [
+                 {"action": "OPEN_APP", "package": "camera"}
+              ]
+            }
+
+            User: "YouTube par song chalao"
+            {
+              "reply": "YouTube par gaana chala raha hoon.",
               "steps": [
                  {"action": "OPEN_APP", "package": "com.google.android.youtube"},
                  {"action": "WAIT", "duration": 2},
-                 {"action": "SEARCH", "query": "trending music"},
+                 {"action": "SEARCH", "query": "trending songs"},
                  {"action": "CLICK_FIRST_RESULT"}
               ]
             }

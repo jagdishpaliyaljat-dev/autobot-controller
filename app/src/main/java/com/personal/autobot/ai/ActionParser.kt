@@ -21,16 +21,11 @@ class ActionParser {
                     val rawAction = obj.optString("action").uppercase()
                     var rawPkg = obj.optString("package", obj.optString("target", ""))
 
-                    // Fix wrong media provider package
-                    if (rawPkg.contains("media", ignoreCase = true) || rawPkg.contains("music", ignoreCase = true)) {
-                        rawPkg = "com.google.android.youtube"
-                    }
-
                     when {
                         // 1. OPEN / LAUNCH
                         rawAction.contains("OPEN") || rawAction.contains("LAUNCH") || rawAction.contains("START") -> {
-                            val resolvedPkg = resolvePackage(rawPkg)
-                            list.add(ActionStep(action = "launch", target = resolvedPkg, durationMs = 4000))
+                            val resolvedPkg = resolvePackage(rawPkg, originalPrompt)
+                            list.add(ActionStep(action = "launch", target = resolvedPkg, durationMs = 3000))
                         }
 
                         // 2. WAIT / DELAY
@@ -44,9 +39,9 @@ class ActionParser {
                             var query = obj.optString("query", obj.optString("target", ""))
                             if (query.isEmpty() || query == "null") query = "trending music songs"
                             
-                            // If app was not launched yet, ensure YouTube is launched
-                            if (list.none { it.action == "launch" }) {
-                                list.add(ActionStep(action = "launch", target = "com.google.android.youtube", durationMs = 4000))
+                            // Only launch YouTube if no app has been launched AND the user specifically asked for media/video/music
+                            if (list.none { it.action == "launch" } && isMediaPrompt(originalPrompt)) {
+                                list.add(ActionStep(action = "launch", target = "com.google.android.youtube", durationMs = 3500))
                             }
                             // Search tap
                             list.add(ActionStep(action = "click_text", target = "Search", durationMs = 2000))
@@ -82,13 +77,13 @@ class ActionParser {
                     }
                 }
 
-                // Fallback guarantee: if user asked for music/youtube and list is empty
-                if (list.isEmpty() && (originalPrompt.contains("music", ignoreCase = true) || originalPrompt.contains("song", ignoreCase = true) || originalPrompt.contains("youtube", ignoreCase = true))) {
-                    list.add(ActionStep(action = "launch", target = "com.google.android.youtube", durationMs = 4000))
-                    list.add(ActionStep(action = "click_text", target = "Search", durationMs = 2000))
-                    list.add(ActionStep(action = "type_text", target = "Search", text = "trending songs", durationMs = 2000))
-                    list.add(ActionStep(action = "click_xy", x = 1000f, y = 2200f, durationMs = 3000))
-                    list.add(ActionStep(action = "click_xy", x = 500f, y = 700f, durationMs = 2000))
+                // If user specifically asked for an app by voice/text but steps is empty, detect intent directly
+                if (list.isEmpty()) {
+                    val directApp = detectDirectApp(originalPrompt)
+                    if (directApp != null) {
+                        list.add(ActionStep(action = "launch", target = directApp, durationMs = 3000))
+                        reply = "मैं ऐप खोल रहा हूँ..."
+                    }
                 }
 
             } catch (e: Exception) {
@@ -99,15 +94,43 @@ class ActionParser {
             return Pair(reply, list)
         }
 
-        private fun resolvePackage(name: String): String {
-            val lower = name.lowercase()
+        private fun isMediaPrompt(prompt: String): Boolean {
+            val lower = prompt.lowercase()
+            return lower.contains("music") || lower.contains("song") || lower.contains("youtube") || lower.contains("video") || lower.contains("gana")
+        }
+
+        private fun detectDirectApp(prompt: String): String? {
+            val lower = prompt.lowercase()
             return when {
-                lower.contains("youtube") -> "com.google.android.youtube"
                 lower.contains("whatsapp") -> "com.whatsapp"
-                lower.contains("insta") -> "com.instagram.android"
-                lower.contains("chrome") -> "com.android.chrome"
+                lower.contains("instagram") || lower.contains("insta") -> "com.instagram.android"
+                lower.contains("camera") -> "camera"
+                lower.contains("chrome") || lower.contains("browser") -> "com.android.chrome"
                 lower.contains("setting") -> "com.android.settings"
-                lower.contains("camera") -> "com.google.android.GoogleCamera"
+                lower.contains("calculator") || lower.contains("hisab") -> "calculator"
+                lower.contains("map") -> "com.google.android.apps.maps"
+                lower.contains("youtube") -> "com.google.android.youtube"
+                lower.contains("photo") || lower.contains("gallery") -> "gallery"
+                lower.contains("dial") || lower.contains("phone") || lower.contains("call") -> "dialer"
+                else -> null
+            }
+        }
+
+        fun resolvePackage(name: String, prompt: String = ""): String {
+            val lower = (name + " " + prompt).lowercase()
+            return when {
+                lower.contains("whatsapp") -> "com.whatsapp"
+                lower.contains("instagram") || lower.contains("insta") -> "com.instagram.android"
+                lower.contains("youtube") -> "com.google.android.youtube"
+                lower.contains("chrome") || lower.contains("browser") -> "com.android.chrome"
+                lower.contains("setting") -> "com.android.settings"
+                lower.contains("camera") -> "camera"
+                lower.contains("calculator") -> "calculator"
+                lower.contains("gallery") || lower.contains("photos") -> "gallery"
+                lower.contains("dialer") || lower.contains("dial") || lower.contains("phone") -> "dialer"
+                lower.contains("map") -> "com.google.android.apps.maps"
+                lower.contains("telegram") -> "org.telegram.messenger"
+                name.isNotBlank() && name.contains(".") -> name
                 else -> name
             }
         }

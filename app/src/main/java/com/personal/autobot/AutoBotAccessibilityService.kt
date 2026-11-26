@@ -121,41 +121,65 @@ class AutoBotAccessibilityService : AccessibilityService() {
                     "launch" -> {
                         val pkg = step.target
                         try {
-                            if (pkg.contains("youtube", ignoreCase = true)) {
-                                // 1. Try launching YouTube via native component first
-                                val ytExplicit = packageManager.getLaunchIntentForPackage("com.google.android.youtube")?.apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                                }
-                                if (ytExplicit != null) {
-                                    startActivity(ytExplicit)
-                                } else {
-                                    val ytIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube://")).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            when {
+                                pkg.contains("youtube", ignoreCase = true) -> {
+                                    val ytExplicit = packageManager.getLaunchIntentForPackage("com.google.android.youtube")?.apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                                     }
-                                    startActivity(ytIntent)
+                                    if (ytExplicit != null) {
+                                        startActivity(ytExplicit)
+                                    } else {
+                                        val ytIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube://")).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                        }
+                                        startActivity(ytIntent)
+                                    }
                                 }
-                            } else {
-                                val launchIntent = packageManager.getLaunchIntentForPackage(pkg)?.apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                }
-                                if (launchIntent != null) {
-                                    startActivity(launchIntent)
-                                } else {
-                                    val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse("package:$pkg")).apply {
+                                pkg.equals("camera", ignoreCase = true) || pkg.contains("camera", ignoreCase = true) -> {
+                                    val camIntent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
-                                    startActivity(viewIntent)
+                                    startActivity(camIntent)
+                                }
+                                pkg.equals("dialer", ignoreCase = true) || pkg.contains("dialer", ignoreCase = true) -> {
+                                    val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    startActivity(dialIntent)
+                                }
+                                pkg.equals("gallery", ignoreCase = true) || pkg.contains("gallery", ignoreCase = true) -> {
+                                    val galleryIntent = Intent(Intent.ACTION_VIEW).apply {
+                                        type = "image/*"
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    startActivity(galleryIntent)
+                                }
+                                pkg.equals("calculator", ignoreCase = true) || pkg.contains("calc", ignoreCase = true) -> {
+                                    val calcIntent = packageManager.getLaunchIntentForPackage("com.google.android.calculator")
+                                        ?: packageManager.getLaunchIntentForPackage("com.android.calculator2")
+                                    calcIntent?.let {
+                                        it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        startActivity(it)
+                                    }
+                                }
+                                else -> {
+                                    val launchIntent = packageManager.getLaunchIntentForPackage(pkg)?.apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    }
+                                    if (launchIntent != null) {
+                                        startActivity(launchIntent)
+                                    } else {
+                                        val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse("package:$pkg")).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        startActivity(viewIntent)
+                                    }
                                 }
                             }
                         } catch (e: Exception) {
-                            try {
-                                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com")).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                startActivity(webIntent)
-                            } catch (_: Exception) {}
+                            Log.e(TAG, "Error launching $pkg", e)
                         }
-                        delay(step.durationMs.coerceAtLeast(4000))
+                        delay(step.durationMs.coerceAtLeast(3000))
                     }
                     "click_text" -> {
                         val clicked = clickByText(step.target)
