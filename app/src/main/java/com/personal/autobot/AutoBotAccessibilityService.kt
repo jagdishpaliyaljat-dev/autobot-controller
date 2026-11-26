@@ -106,7 +106,6 @@ class AutoBotAccessibilityService : AccessibilityService() {
 
     fun clickSearchElement(): Boolean {
         val rootNode = rootInActiveWindow ?: return false
-        // Search by view id containing search or description
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(rootNode)
         while (queue.isNotEmpty()) {
@@ -116,6 +115,39 @@ class AutoBotAccessibilityService : AccessibilityService() {
             val viewId = (node.viewIdResourceName?.toString() ?: "").lowercase()
 
             if (text.contains("search") || desc.contains("search") || viewId.contains("search")) {
+                var current: AccessibilityNodeInfo? = node
+                while (current != null) {
+                    if (current.isClickable) {
+                        current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        return true
+                    }
+                    current = current.parent
+                }
+                val rect = android.graphics.Rect()
+                node.getBoundsInScreen(rect)
+                if (rect.width() > 0 && rect.height() > 0) {
+                    clickAt(rect.centerX().toFloat(), rect.centerY().toFloat())
+                    return true
+                }
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return false
+    }
+
+    fun clickSendElement(): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(rootNode)
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            val text = (node.text?.toString() ?: "").lowercase()
+            val desc = (node.contentDescription?.toString() ?: "").lowercase()
+            val viewId = (node.viewIdResourceName?.toString() ?: "").lowercase()
+
+            if (text.contains("send") || desc.contains("send") || viewId.contains("send")) {
                 var current: AccessibilityNodeInfo? = node
                 while (current != null) {
                     if (current.isClickable) {
@@ -234,18 +266,23 @@ class AutoBotAccessibilityService : AccessibilityService() {
                         delay(step.durationMs.coerceAtLeast(3000))
                     }
                     "click_text" -> {
-                        val clicked = if (step.target.contains("Search", ignoreCase = true)) {
-                            clickSearchElement() || clickByText(step.target)
-                        } else {
-                            clickByText(step.target)
+                        val target = step.target
+                        val clicked = when {
+                            target.contains("Search", ignoreCase = true) -> clickSearchElement() || clickByText(target)
+                            target.contains("Send", ignoreCase = true) -> clickSendElement() || clickByText(target)
+                            else -> clickByText(target)
                         }
 
-                        if (!clicked && step.target.contains("Search", ignoreCase = true)) {
+                        if (!clicked) {
                             val metrics = resources.displayMetrics
-                            // YouTube & standard top search icon is top-right
-                            clickAt(metrics.widthPixels - 140f, 160f)
+                            if (target.contains("Search", ignoreCase = true)) {
+                                clickAt(metrics.widthPixels - 140f, 160f)
+                            } else if (target.contains("Send", ignoreCase = true)) {
+                                // Send button on WhatsApp is bottom right
+                                clickAt(metrics.widthPixels - 80f, metrics.heightPixels - 120f)
+                            }
                         }
-                        delay(step.durationMs.coerceAtLeast(2000))
+                        delay(step.durationMs.coerceAtLeast(1500))
                     }
                     "click_xy" -> {
                         val metrics = resources.displayMetrics
@@ -257,37 +294,15 @@ class AutoBotAccessibilityService : AccessibilityService() {
                     "type_text" -> {
                         val text = step.text
                         var typed = false
-                        // 1. Try finding input field by target
                         val rootNode = rootInActiveWindow
-                        if (rootNode != null && step.target.isNotBlank()) {
-                            val nodes = rootNode.findAccessibilityNodeInfosByText(step.target)
-                            for (node in nodes) {
-                                val arguments = Bundle().apply {
-                                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-                                }
-                                if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
-                                    typed = true
-                                    break
-                                }
-                            }
-                        }
-                        // 2. Try currently focused input node
-                        if (!typed && rootNode != null) {
-                            val focused = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-                            val arguments = Bundle().apply {
-                                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-                            }
-                            if (focused != null && focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
-                                typed = true
-                            }
-                        }
-                        // 3. Fallback: Search any editable node in window
-                        if (!typed && rootNode != null) {
+                        
+                        // 1. Try finding editable node directly
+                        if (rootNode != null) {
                             val queue = ArrayDeque<AccessibilityNodeInfo>()
                             queue.add(rootNode)
                             while (queue.isNotEmpty()) {
                                 val node = queue.removeFirst()
-                                if (node.isEditable) {
+                                if (node.isEditable || node.className?.contains("EditText", true) == true) {
                                     val arguments = Bundle().apply {
                                         putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
                                     }
@@ -301,7 +316,32 @@ class AutoBotAccessibilityService : AccessibilityService() {
                                 }
                             }
                         }
-                        delay(step.durationMs.coerceAtLeast(2000))
+
+                        // 2. Try finding input field by target hint/text
+                        if (!typed && rootNode != null && step.target.isNotBlank()) {
+                            val nodes = rootNode.findAccessibilityNodeInfosByText(step.target)
+                            for (node in nodes) {
+                                val arguments = Bundle().apply {
+                                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                                }
+                                if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
+                                    typed = true
+                                    break
+                                }
+                            }
+                        }
+
+                        // 3. Try currently focused input node
+                        if (!typed && rootNode != null) {
+                            val focused = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                            val arguments = Bundle().apply {
+                                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                            }
+                            if (focused != null && focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
+                                typed = true
+                            }
+                        }
+                        delay(step.durationMs.coerceAtLeast(1500))
                     }
                     "delay" -> {
                         delay(step.durationMs)
