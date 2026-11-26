@@ -146,14 +146,26 @@ class MainActivity : AppCompatActivity() {
                     rvChat.scrollToPosition(messages.size - 1)
 
                     if (steps.isNotEmpty()) {
-                        tvExecutionStatus.text = "> ⚡ मोबाइल पर ${steps.size} ऑटोमैटिक एक्शन्स परफॉर्म हो रहे हैं..."
-                        service.executeAiPlan(steps) {
-                            activityScope.launch(Dispatchers.Main) {
-                                tvExecutionStatus.text = "> ✅ टास्क सफलतापूर्वक पूरा हुआ!"
-                                chatAdapter.addMessage(ChatMessage("काम पूरा हो गया! 🎉", isUser = false))
-                                rvChat.scrollToPosition(messages.size - 1)
+                        tvExecutionStatus.text = "> ⚡ मोबाइल पर ${steps.size} ऑटोमैटिक एक्शन्स शुरू हो रहे हैं..."
+
+                        // MINIMIZE AutoBot so user sees real action on YouTube / phone screen!
+                        moveTaskToBack(true)
+
+                        service.executeAiPlan(
+                            steps,
+                            onStepUpdate = { statusMsg ->
+                                activityScope.launch(Dispatchers.Main) {
+                                    tvExecutionStatus.text = "> $statusMsg"
+                                }
+                            },
+                            onFinished = {
+                                activityScope.launch(Dispatchers.Main) {
+                                    tvExecutionStatus.text = "> ✅ टास्क सफलतापूर्वक पूरा हुआ!"
+                                    chatAdapter.addMessage(ChatMessage("काम पूरा हो गया! 🎉", isUser = false))
+                                    rvChat.scrollToPosition(messages.size - 1)
+                                }
                             }
-                        }
+                        )
                     } else {
                         tvExecutionStatus.text = "> ℹ️ केवल बातचीत (कोई स्क्रीन एक्शन नहीं)"
                     }

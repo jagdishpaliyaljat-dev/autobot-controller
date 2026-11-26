@@ -57,11 +57,8 @@ jobs:
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
-      if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+      if: startsWith(github.ref, 'refs/tags/')
       with:
-        tag_name: v4.0.0
-        name: AutoBot Controller v4.0.0 (Real Autonomous Engine)
-        body: "Fully functional action execution engine + permanent keystore committed into repo."
         files: app/build/outputs/apk/release/*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
