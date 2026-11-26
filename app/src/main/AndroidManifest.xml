@@ -18,7 +18,7 @@
         android:label="AutoBot AI Agent"
         android:roundIcon="@android:drawable/ic_dialog_info"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+        android:theme="@style/Theme.AutoBotDark">
 
         <activity
             android:name=".MainActivity"

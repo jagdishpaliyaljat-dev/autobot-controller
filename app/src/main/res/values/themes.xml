@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.AutoBotDark" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:statusBarColor">#0D0E15</item>
+        <item name="android:navigationBarColor">#0D0E15</item>
+        <item name="android:windowBackground">#0D0E15</item>
+        <item name="colorPrimary">#00F5D4</item>
+        <item name="colorSecondary">#7B2CBF</item>
+    </style>
+</resources>
