@@ -1,103 +1,150 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
+    android:fillViewport="true"
     android:background="#121212">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🤖 AutoBot Full Phone Controller"
-        android:textColor="#FFFFFF"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp" />
+        android:orientation="vertical"
+        android:padding="20dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Step 1: Grant Permissions"
-        android:textColor="#BB86FC"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginTop="8dp" />
-
-    <Button
-        android:id="@+id/btnPermissions"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enable Accessibility &amp; Battery Saver"
-        android:backgroundTint="#6200EE"
-        android:textColor="#FFFFFF"
-        android:layout_marginTop="8dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Step 2: Choose Automation Target"
-        android:textColor="#BB86FC"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginTop="20dp" />
-
-    <RadioGroup
-        android:id="@+id/rgTargetApp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp">
-
-        <RadioButton
-            android:id="@+id/rbYouTube"
-            android:layout_width="wrap_content"
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="YouTube"
+            android:text="🧠 AutoBot Autonomous AI Agent"
             android:textColor="#FFFFFF"
-            android:checked="true" />
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
 
-        <RadioButton
-            android:id="@+id/rbInstagram"
-            android:layout_width="wrap_content"
+        <Button
+            android:id="@+id/btnPermissions"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Instagram"
+            android:text="🛡️ Enable Accessibility &amp; Battery Saver"
+            android:backgroundTint="#6200EE"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="AI Settings (OpenRouter Key):"
+            android:textColor="#BB86FC"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
+
+        <EditText
+            android:id="@+id/etApiKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Paste OpenRouter API Key (sk-or-v1-...)"
             android:textColor="#FFFFFF"
-            android:layout_marginStart="16dp" />
-    </RadioGroup>
+            android:textColorHint="#666666"
+            android:inputType="textPassword"
+            android:backgroundTint="#BB86FC" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Schedule Delay (in minutes):"
-        android:textColor="#E0E0E0"
-        android:layout_marginTop="16dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚡ Direct AI Task / Command (Hindi or English):"
+            android:textColor="#03DAC5"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
 
-    <EditText
-        android:id="@+id/etDelayMinutes"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="number"
-        android:text="1"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#888888"
-        android:backgroundTint="#BB86FC" />
+        <EditText
+            android:id="@+id/etUserPrompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="e.g. YouTube kholo, trending songs search karo aur pehli video play karo"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#666666"
+            android:minLines="3"
+            android:gravity="top|start"
+            android:background="#1E1E1E"
+            android:padding="12dp"
+            android:layout_marginTop="6dp" />
 
-    <Button
-        android:id="@+id/btnScheduleTask"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="🚀 Start Scheduled Automation"
-        android:backgroundTint="#03DAC5"
-        android:textColor="#000000"
-        android:layout_marginTop="24dp" />
+        <Button
+            android:id="@+id/btnRunAiTask"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🚀 AI se Task Karvao (Execute Now)"
+            android:backgroundTint="#03DAC5"
+            android:textColor="#000000"
+            android:textStyle="bold"
+            android:layout_marginTop="12dp" />
 
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Status: Waiting for action..."
-        android:textColor="#AAAAAA"
-        android:layout_marginTop="16dp" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#333333"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="16dp" />
 
-</LinearLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⏰ Or Preset Scheduled Task (YouTube/Insta):"
+            android:textColor="#FFA000"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/rgTargetApp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <RadioButton
+                android:id="@+id/rbYouTube"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="YouTube"
+                android:textColor="#FFFFFF"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/rbInstagram"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Instagram"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="16dp" />
+        </RadioGroup>
+
+        <EditText
+            android:id="@+id/etDelayMinutes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="1"
+            android:hint="Schedule delay in minutes"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#888888"
+            android:backgroundTint="#FFA000" />
+
+        <Button
+            android:id="@+id/btnScheduleTask"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Schedule Preset Macro"
+            android:backgroundTint="#FFA000"
+            android:textColor="#000000"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Status: Ready for commands"
+            android:textColor="#AAAAAA"
+            android:layout_marginTop="16dp" />
+
+    </LinearLayout>
+</ScrollView>
