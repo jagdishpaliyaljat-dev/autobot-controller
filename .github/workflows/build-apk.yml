@@ -24,27 +24,9 @@ jobs:
       with:
         gradle-version: 8.4
 
-    - name: Restore or Commit Permanent Keystore
+    - name: Ensure Keystore Directory Exists
       run: |
-        mkdir -p keystore
-        if [ ! -f keystore/release.jks ]; then
-          echo "Generating permanent keystore..."
-          keytool -genkeypair -v \
-            -keystore keystore/release.jks \
-            -alias autobot_key \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 20000 \
-            -storepass autobot_secret_key_pass \
-            -keypass autobot_secret_key_pass \
-            -dname "CN=AutoBot, OU=Personal, O=Personal, L=India, ST=India, C=IN"
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add keystore/release.jks
-          git commit -m "Permanently save release.jks in repo for seamless updates"
-          git push origin main || true
-        fi
+        ls -la keystore/release.jks
 
     - name: Build Signed APK
       run: gradle assembleRelease --stacktrace
