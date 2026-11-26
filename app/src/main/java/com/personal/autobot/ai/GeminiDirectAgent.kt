@@ -47,7 +47,6 @@ class GeminiDirectAgent(private val apiKey: String) {
             - Settings: com.android.settings
             - Camera: com.google.android.GoogleCamera
             - Gmail: com.google.android.gm
-            - Gallery/Photos: com.google.android.apps.photos
 
             Output ONLY valid JSON:
             {"reply": "...", "steps": [...]}
@@ -62,8 +61,8 @@ class GeminiDirectAgent(private val apiKey: String) {
     }
 
     private fun queryGeminiDirect(systemPrompt: String, userGoal: String): Pair<String, List<ActionStep>> {
-        // Updated to gemini-3.8-flash (or fallback gemini-1.5-flash) as requested by Google API
-        val modelsToTry = listOf("gemini-3.8-flash", "gemini-1.5-flash", "gemini-1.5-pro")
+        // High performance models available for Gemini API Keys
+        val modelsToTry = listOf("gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest")
 
         for (modelName in modelsToTry) {
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
@@ -100,8 +99,8 @@ class GeminiDirectAgent(private val apiKey: String) {
                     if (json.has("error")) {
                         val errObj = json.getJSONObject("error")
                         val code = errObj.optInt("code", 0)
-                        if (code == 404) {
-                            // Try next model in list
+                        if (code == 404 || code == 503) {
+                            // Try next available model
                             return@use
                         }
                         return Pair("Gemini Error: ${errObj.optString("message")}", emptyList())
