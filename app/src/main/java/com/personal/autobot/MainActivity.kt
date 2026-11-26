@@ -1,20 +1,24 @@
 package com.personal.autobot
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
+import android.view.View
 import android.widget.EditText
-import android.widget.RadioButton
+import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.personal.autobot.ai.OpenRouterAgent
+import androidx.appcompat.widget.AppCompatButton
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.personal.autobot.ai.ChatAdapter
+import com.personal.autobot.ai.ChatMessage
+import com.personal.autobot.ai.GeminiDirectAgent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,6 +27,8 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     private val activityScope = CoroutineScope(Dispatchers.Main)
+    private lateinit var chatAdapter: ChatAdapter
+    private val messages = mutableListOf<ChatMessage>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,17 +36,44 @@ class MainActivity : AppCompatActivity() {
 
         val prefs = getSharedPreferences("autobot_prefs", Context.MODE_PRIVATE)
 
-        val btnPermissions = findViewById<Button>(R.id.btnPermissions)
-        val btnRunAiTask = findViewById<Button>(R.id.btnRunAiTask)
-        val btnScheduleTask = findViewById<Button>(R.id.btnScheduleTask)
+        val rvChat = findViewById<RecyclerView>(R.id.rvChat)
+        val etChatInput = findViewById<EditText>(R.id.etChatInput)
+        val btnSendMessage = findViewById<ImageButton>(R.id.btnSendMessage)
+        val btnToggleSettings = findViewById<ImageButton>(R.id.btnToggleSettings)
+        val llSettingsPanel = findViewById<LinearLayout>(R.id.llSettingsPanel)
         val etApiKey = findViewById<EditText>(R.id.etApiKey)
-        val etUserPrompt = findViewById<EditText>(R.id.etUserPrompt)
-        val rbYouTube = findViewById<RadioButton>(R.id.rbYouTube)
-        val etDelayMinutes = findViewById<EditText>(R.id.etDelayMinutes)
-        val tvStatus = findViewById<TextView>(R.id.tvStatus)
+        val btnPermissions = findViewById<AppCompatButton>(R.id.btnPermissions)
+        val tvExecutionStatus = findViewById<TextView>(R.id.tvExecutionStatus)
 
-        etApiKey.setText(prefs.getString("openrouter_key", ""))
+        // Load saved API Key (Gemini or OpenRouter)
+        etApiKey.setText(prefs.getString("gemini_api_key", ""))
 
+        // RecyclerView Setup
+        chatAdapter = ChatAdapter(messages)
+        val layoutManager = LinearLayoutManager(this).apply {
+            stackFromEnd = true
+        }
+        rvChat.layoutManager = layoutManager
+        rvChat.adapter = chatAdapter
+
+        // Welcome Bot Message
+        chatAdapter.addMessage(
+            ChatMessage(
+                "नमस्ते! मैं आपका AutoBot AI असिस्टेंट हूँ।\nआप मुझे कुछ भी बोलें (जैसे: 'YouTube खोलकर गाना चलाओ', 'WhatsApp पर मैसेज भेजो', या 'सेटिंग्स चेक करो')—मैं खुद आपके मोबाइल की स्क्रीन पर वो काम कर दूंगा! 🚀",
+                isUser = false
+            )
+        )
+
+        // Toggle Settings
+        btnToggleSettings.setOnClickListener {
+            if (llSettingsPanel.visibility == View.VISIBLE) {
+                llSettingsPanel.visibility = View.GONE
+            } else {
+                llSettingsPanel.visibility = View.VISIBLE
+            }
+        }
+
+        // Grant Permissions
         btnPermissions.setOnClickListener {
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             startActivity(intent)
@@ -53,78 +86,67 @@ class MainActivity : AppCompatActivity() {
                     startActivity(powerIntent)
                 } catch (_: Exception) {}
             }
-            Toast.makeText(this, "Turn ON 'AutoBot AI Agent' in Accessibility", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Accessibility में जाकर 'AutoBot AI Agent' चालू करें", Toast.LENGTH_LONG).show()
         }
 
-        btnRunAiTask.setOnClickListener {
+        // Send Message & Execute Auto Actions
+        btnSendMessage.setOnClickListener {
+            val userText = etChatInput.text.toString().trim()
             val apiKey = etApiKey.text.toString().trim()
-            val prompt = etUserPrompt.text.toString().trim()
 
-            if (prompt.isEmpty()) {
-                Toast.makeText(this, "Please enter an AI prompt/command", Toast.LENGTH_SHORT).show()
+            if (userText.isEmpty()) return@setOnClickListener
+
+            if (apiKey.isEmpty()) {
+                llSettingsPanel.visibility = View.VISIBLE
+                Toast.makeText(this, "कृपया अपनी Gemini API Key (या OpenRouter Key) ऊपर दर्ज करें!", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-            prefs.edit().putString("openrouter_key", apiKey).apply()
+            prefs.edit().putString("gemini_api_key", apiKey).apply()
+
+            // 1. Add User Message to Chat
+            chatAdapter.addMessage(ChatMessage(userText, isUser = true))
+            etChatInput.text.clear()
+            rvChat.scrollToPosition(messages.size - 1)
 
             val service = AutoBotAccessibilityService.instance
             if (service == null) {
-                Toast.makeText(this, "Please enable Accessibility Service first!", Toast.LENGTH_LONG).show()
+                chatAdapter.addMessage(
+                    ChatMessage(
+                        "⚠️ कृपया पहले ऊपर सेटिंग्स में जाकर Accessibility Service ऑन करें ताकि मैं स्क्रीन पर एक्शन ले सकूँ!",
+                        isUser = false
+                    )
+                )
+                rvChat.scrollToPosition(messages.size - 1)
                 return@setOnClickListener
             }
 
-            tvStatus.text = "Status: AI is analyzing prompt and screen..."
+            tvExecutionStatus.text = "> 🧠 Gemini AI स्क्रीन और कमांड को एनालाइज कर रहा है..."
+
             activityScope.launch {
                 val screenContext = service.extractScreenContext()
-                val agent = OpenRouterAgent(apiKey)
-                val steps = agent.planActionSteps(prompt, screenContext)
+                val agent = GeminiDirectAgent(apiKey)
+                val (botReply, steps) = agent.planActionSteps(userText, screenContext)
 
-                if (steps.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        tvStatus.text = "Status: AI could not generate steps (check API key or network)."
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        tvStatus.text = "Status: Executing ${steps.size} AI steps..."
-                    }
-                    service.executeAiPlan(steps) {
-                        activityScope.launch(Dispatchers.Main) {
-                            tvStatus.text = "Status: AI Task finished successfully!"
+                withContext(Dispatchers.Main) {
+                    // 2. Add AI reply to chat
+                    chatAdapter.addMessage(ChatMessage(botReply, isUser = false))
+                    rvChat.scrollToPosition(messages.size - 1)
+
+                    if (steps.isNotEmpty()) {
+                        tvExecutionStatus.text = "> ⚡ मोबाइल पर ${steps.size} ऑटोमैटिक एक्शन्स परफॉर्म हो रहे हैं..."
+                        service.executeAiPlan(steps) {
+                            activityScope.launch(Dispatchers.Main) {
+                                tvExecutionStatus.text = "> ✅ टास्क सफलतापूर्वक पूरा हुआ!"
+                                chatAdapter.addMessage(ChatMessage("काम पूरा हो गया! 🎉", isUser = false))
+                                rvChat.scrollToPosition(messages.size - 1)
+                            }
                         }
+                    } else {
+                        tvExecutionStatus.text = "> ℹ️ केवल बातचीत (कोई स्क्रीन एक्शन नहीं)"
                     }
                 }
             }
         }
-
-        btnScheduleTask.setOnClickListener {
-            val minutesStr = etDelayMinutes.text.toString().trim()
-            val minutes = minutesStr.toIntOrNull() ?: 1
-            val targetPkg = if (rbYouTube.isChecked) {
-                "com.google.android.youtube"
-            } else {
-                "com.instagram.android"
-            }
-
-            scheduleTask(targetPkg, minutes)
-            tvStatus.text = "Status: Preset scheduled for $targetPkg in $minutes min(s)."
-        }
-    }
-
-    private fun scheduleTask(targetPackage: String, delayMinutes: Int) {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, TaskSchedulerReceiver::class.java).apply {
-            putExtra("PACKAGE_NAME", targetPackage)
-        }
-        val pendingIntent = PendingIntent.getBroadcast(
-            this,
-            101,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val triggerTime = System.currentTimeMillis() + (delayMinutes * 60 * 1000)
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
-
-        Toast.makeText(this, "Scheduled for $delayMinutes minute(s) from now!", Toast.LENGTH_SHORT).show()
     }
 }

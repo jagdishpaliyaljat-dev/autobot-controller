@@ -1,335 +1,164 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
+    android:orientation="vertical"
     android:background="@drawable/bg_cyber_gradient">
 
+    <!-- Top Chatbot Header -->
     <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="#151724">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🤖"
+            android:textSize="26sp"
+            android:layout_marginEnd="10dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AutoBot Copilot"
+                android:textColor="#00F5D4"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvHeaderStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Gemini 2.0 • Online &amp; Autonomous"
+                android:textColor="#7A859E"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Settings / Key Button -->
+        <ImageButton
+            android:id="@+id/btnToggleSettings"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_glass_card"
+            android:src="@android:drawable/ic_menu_preferences"
+            android:tint="#00F5D4" />
+    </LinearLayout>
+
+    <!-- Collapsible Settings Panel (API Key & Accessibility) -->
+    <LinearLayout
+        android:id="@+id/llSettingsPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:background="#1B1E30"
+        android:padding="14dp"
+        android:visibility="gone">
 
-        <!-- Top Header Bar -->
-        <LinearLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="24dp">
+            android:text="🔑 Gemini API Key (या OpenRouter Key):"
+            android:textColor="#00F5D4"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AUTOBOT AI"
-                    android:textColor="#00F5D4"
-                    android:textSize="24sp"
-                    android:letterSpacing="0.08"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Autonomous Mobile Intelligence"
-                    android:textColor="#8F9CAE"
-                    android:textSize="12sp"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-
-            <!-- Status Indicator Pill -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_glass_card"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="6dp"
-                android:paddingBottom="6dp">
-
-                <ImageView
-                    android:id="@+id/ivServiceDot"
-                    android:layout_width="8dp"
-                    android:layout_height="8dp"
-                    android:src="@drawable/dot_active" />
-
-                <TextView
-                    android:id="@+id/tvServiceState"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ACTIVE"
-                    android:textColor="#00F5D4"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:layout_marginStart="6dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Card 1: System Permissions -->
-        <LinearLayout
+        <EditText
+            android:id="@+id/etApiKey"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_glass_card"
-            android:padding="18dp"
-            android:layout_marginBottom="18dp">
+            android:layout_height="42dp"
+            android:background="@drawable/bg_input_field"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:hint="Gemini API Key (AIzaSy...) ya OpenRouter"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#5A6482"
+            android:textSize="12sp"
+            android:inputType="textPassword"
+            android:layout_marginTop="6dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="SYSTEM ACCESS"
-                android:textColor="#BB86FC"
-                android:textSize="13sp"
-                android:letterSpacing="0.05"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Enable deep Accessibility gestures and disable background battery optimization."
-                android:textColor="#A0AABF"
-                android:textSize="12sp"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="12dp" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btnPermissions"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_secondary_btn"
-                android:text="Grant Full Permissions"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Card 2: AI Neural Engine -->
-        <LinearLayout
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnPermissions"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_glass_card"
-            android:padding="18dp"
-            android:layout_marginBottom="18dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="AI NEURAL CONTROLLER"
-                    android:textColor="#00F5D4"
-                    android:textSize="13sp"
-                    android:letterSpacing="0.05"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Gemini 2.0"
-                    android:textColor="#5A6482"
-                    android:textSize="11sp" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="OpenRouter API Key:"
-                android:textColor="#C0CADC"
-                android:textSize="12sp"
-                android:layout_marginBottom="6dp" />
-
-            <EditText
-                android:id="@+id/etApiKey"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:background="@drawable/bg_input_field"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:hint="sk-or-v1-..."
-                android:textColor="#FFFFFF"
-                android:textColorHint="#4F5670"
-                android:textSize="13sp"
-                android:inputType="textPassword"
-                android:layout_marginBottom="14dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Natural Language Instruction (Hindi / English):"
-                android:textColor="#C0CADC"
-                android:textSize="12sp"
-                android:layout_marginBottom="6dp" />
-
-            <EditText
-                android:id="@+id/etUserPrompt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minLines="3"
-                android:gravity="top|start"
-                android:background="@drawable/bg_input_field"
-                android:padding="14dp"
-                android:hint="e.g. YouTube kholo, trending songs search karo aur pehli video play karo"
-                android:textColor="#FFFFFF"
-                android:textColorHint="#4F5670"
-                android:textSize="13sp"
-                android:layout_marginBottom="16dp" />
-
-            <!-- Cyber Neon Execute Button -->
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btnRunAiTask"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="@drawable/bg_neon_btn"
-                android:text="⚡ Execute Autonomous AI Task"
-                android:textAllCaps="false"
-                android:textColor="#0D0E15"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Card 3: Quick Preset Automation -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_glass_card"
-            android:padding="18dp"
-            android:layout_marginBottom="18dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="SCHEDULED MACRO ENGINE"
-                android:textColor="#FFA000"
-                android:textSize="13sp"
-                android:letterSpacing="0.05"
-                android:textStyle="bold"
-                android:layout_marginBottom="10dp" />
-
-            <RadioGroup
-                android:id="@+id/rgTargetApp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
-
-                <RadioButton
-                    android:id="@+id/rbYouTube"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="YouTube Upload"
-                    android:textColor="#FFFFFF"
-                    android:checked="true" />
-
-                <RadioButton
-                    android:id="@+id/rbInstagram"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Instagram Post"
-                    android:textColor="#FFFFFF"
-                    android:layout_marginStart="20dp" />
-            </RadioGroup>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="14dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Schedule Delay (minutes):"
-                    android:textColor="#C0CADC"
-                    android:textSize="13sp" />
-
-                <EditText
-                    android:id="@+id/etDelayMinutes"
-                    android:layout_width="70dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:background="@drawable/bg_input_field"
-                    android:inputType="number"
-                    android:text="1"
-                    android:textColor="#FFA000"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/btnScheduleTask"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_secondary_btn"
-                android:text="⏰ Schedule Background Task"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Live Status Terminal Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_glass_card"
-            android:padding="16dp"
-            android:layout_marginBottom="24dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="LIVE STATUS CONSOLE"
-                    android:textColor="#5A6482"
-                    android:textSize="11sp"
-                    android:letterSpacing="0.05"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="● IDLE"
-                    android:textColor="#00F5D4"
-                    android:textSize="10sp" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="> System initialized. Ready to accept commands."
-                android:textColor="#00F5D4"
-                android:fontFamily="monospace"
-                android:textSize="12sp"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
-
+            android:layout_height="42dp"
+            android:background="@drawable/bg_secondary_btn"
+            android:text="🛡️ Accessibility &amp; Battery Saver Allow Karo"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:layout_marginTop="10dp" />
     </LinearLayout>
-</ScrollView>
+
+    <!-- Live Floating Execution Status -->
+    <TextView
+        android:id="@+id/tvExecutionStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#0A0B10"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="> AI Copilot Ready. Kuch bhi bolkar kaam karvao."
+        android:textColor="#00F5D4"
+        android:fontFamily="monospace"
+        android:textSize="11sp" />
+
+    <!-- Chat Messages RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvChat"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="12dp"
+        android:clipToPadding="false" />
+
+    <!-- Bottom Input Area -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="10dp"
+        android:background="#151724">
+
+        <EditText
+            android:id="@+id/etChatInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="46dp"
+            android:maxHeight="100dp"
+            android:background="@drawable/bg_input_field"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:hint="Bolkar ya likhkar command do (Hindi / English)..."
+            android:textColor="#FFFFFF"
+            android:textColorHint="#5A6482"
+            android:textSize="13sp" />
+
+        <!-- Send Button -->
+        <ImageButton
+            android:id="@+id/btnSendMessage"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_btn_send"
+            android:src="@android:drawable/ic_menu_send"
+            android:tint="#0D0E15" />
+    </LinearLayout>
+
+</LinearLayout>
