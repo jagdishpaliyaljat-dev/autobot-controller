@@ -19,37 +19,39 @@ class GeminiDirectAgent(private val apiKey: String) {
 
     suspend fun planActionSteps(userGoal: String, screenContext: String): Pair<String, List<ActionStep>> = withContext(Dispatchers.IO) {
         val systemPrompt = """
-            You are AutoBot, an autonomous Android AI Chatbot that controls the user's phone directly.
-            The user talks to you via chat in Hindi, Hinglish, or English.
-            Current visible screen elements on phone:
-            [$screenContext]
+            You are AutoBot, an Android automation action planner.
+            You must translate the user's intent into concrete executable action steps on their phone.
+            Current screen elements: [$screenContext]
 
-            Respond in JSON with two keys:
-            1. "reply": A friendly, helpful conversational reply in Hindi or Hinglish explaining what you are doing (e.g. "ज़रूर! मैं अभी YouTube खोलकर ट्रेंडिंग गाने प्ले कर रहा हूँ।").
-            2. "steps": An array of executable action objects to perform on the phone.
+            Allowed Action Names in "action" field:
+            1. "launch" -> Opens app. "target" MUST be package name (e.g. "com.google.android.youtube", "com.whatsapp", "com.instagram.android", "com.android.settings", "com.android.chrome").
+            2. "click_text" -> Taps button or element containing visible text in "target".
+            3. "type_text" -> Types text into input. "target": label/hint, "text": string to enter.
+            4. "click_xy" -> Taps specific coordinate. "x": float, "y": float.
+            5. "delay" -> Waits. "durationMs": milliseconds (e.g. 2000).
+            6. "press_enter" -> Simulates enter/search key.
+            7. "swipe_down" -> Scrolls down.
+            8. "swipe_up" -> Scrolls up.
+            9. "back" -> Android back button.
+            10. "home" -> Android home button.
 
-            Possible actions in "steps":
-            - {"action": "launch", "target": "package_name_e.g_com.google.android.youtube"}
-            - {"action": "click_text", "target": "Exact text or button label on screen"}
-            - {"action": "type_text", "target": "Input field label or hint", "text": "Text to enter"}
-            - {"action": "click_xy", "x": 540, "y": 1200}
-            - {"action": "delay", "durationMs": 2000}
-            - {"action": "swipe_down"}
-            - {"action": "swipe_up"}
-            - {"action": "back"}
-            - {"action": "home"}
+            RULES:
+            - If user asks to play music/song on YouTube:
+              Step 1: {"action": "launch", "target": "com.google.android.youtube", "durationMs": 4000}
+              Step 2: {"action": "click_text", "target": "Search", "durationMs": 2000}
+              Step 3: {"action": "type_text", "target": "Search YouTube", "text": "trending music song", "durationMs": 2000}
+              Step 4: {"action": "click_xy", "x": 1000, "y": 2100, "durationMs": 2500} (Keyboard search button)
+              Step 5: {"action": "click_xy", "x": 500, "y": 700, "durationMs": 2000} (Tap first video result)
 
-            Common packages:
-            - YouTube: com.google.android.youtube
-            - Instagram: com.instagram.android
-            - WhatsApp: com.whatsapp
-            - Chrome: com.android.chrome
-            - Settings: com.android.settings
-            - Camera: com.google.android.GoogleCamera
-            - Gmail: com.google.android.gm
+            - If user asks to open any app, use "launch" with correct package name.
+            - If user asks general questions without phone actions, steps can be empty.
 
-            Output ONLY valid JSON:
-            {"reply": "...", "steps": [...]}
+            OUTPUT FORMAT:
+            You must return strictly valid JSON:
+            {
+              "reply": "Friendly explanation in Hindi explaining what actions you are executing",
+              "steps": [ ...list of actions... ]
+            }
         """.trimIndent()
 
         // If apiKey starts with sk-or, use OpenRouter, else use Official Google Gemini API
@@ -61,7 +63,6 @@ class GeminiDirectAgent(private val apiKey: String) {
     }
 
     private fun queryGeminiDirect(systemPrompt: String, userGoal: String): Pair<String, List<ActionStep>> {
-        // High performance models available for Gemini API Keys
         val modelsToTry = listOf("gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest")
 
         for (modelName in modelsToTry) {
@@ -73,7 +74,7 @@ class GeminiDirectAgent(private val apiKey: String) {
                         put("role", "user")
                         put("parts", JSONArray().apply {
                             put(JSONObject().apply {
-                                put("text", "$systemPrompt\n\nUser Message: $userGoal")
+                                put("text", "$systemPrompt\n\nUser Request: $userGoal")
                             })
                         })
                     })
@@ -100,7 +101,6 @@ class GeminiDirectAgent(private val apiKey: String) {
                         val errObj = json.getJSONObject("error")
                         val code = errObj.optInt("code", 0)
                         if (code == 404 || code == 503) {
-                            // Try next available model
                             return@use
                         }
                         return Pair("Gemini Error: ${errObj.optString("message")}", emptyList())
@@ -118,7 +118,7 @@ class GeminiDirectAgent(private val apiKey: String) {
             }
         }
 
-        return Pair("Gemini API Error: Models available नहीं हैं या API Key अमान्य है।", emptyList())
+        return Pair("Gemini API Error: Models available नहीं हैं।", emptyList())
     }
 
     private fun queryOpenRouter(systemPrompt: String, userGoal: String): Pair<String, List<ActionStep>> {
@@ -131,7 +131,7 @@ class GeminiDirectAgent(private val apiKey: String) {
                 })
                 put(JSONObject().apply {
                     put("role", "user")
-                    put("content", "User Message: $userGoal")
+                    put("content", "User Request: $userGoal")
                 })
             }
             put("messages", messages)
@@ -171,14 +171,36 @@ class GeminiDirectAgent(private val apiKey: String) {
             val array = root.optJSONArray("steps") ?: JSONArray()
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
+                var action = obj.optString("action")
+                var target = obj.optString("target")
+
+                // Normalization of loose AI actions
+                if (action == "open_app" || action == "open" || action == "start") {
+                    action = "launch"
+                    if (target.contains("youtube", ignoreCase = true)) target = "com.google.android.youtube"
+                    else if (target.contains("whatsapp", ignoreCase = true)) target = "com.whatsapp"
+                    else if (target.contains("insta", ignoreCase = true)) target = "com.instagram.android"
+                    else if (target.contains("chrome", ignoreCase = true)) target = "com.android.chrome"
+                    else if (target.contains("setting", ignoreCase = true)) target = "com.android.settings"
+                }
+
+                if (action == "search") {
+                    // Turn "search" into type & click search
+                    action = "type_text"
+                }
+
+                if (action == "click") {
+                    action = "click_text"
+                }
+
                 list.add(
                     ActionStep(
-                        action = obj.optString("action"),
-                        target = obj.optString("target"),
-                        text = obj.optString("text"),
+                        action = action,
+                        target = target,
+                        text = obj.optString("text", if (action == "type_text") target else ""),
                         x = obj.optDouble("x", 0.0).toFloat(),
                         y = obj.optDouble("y", 0.0).toFloat(),
-                        durationMs = obj.optLong("durationMs", 1000)
+                        durationMs = obj.optLong("durationMs", 1500)
                     )
                 )
             }
