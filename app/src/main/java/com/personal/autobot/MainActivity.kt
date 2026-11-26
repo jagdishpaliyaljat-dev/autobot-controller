@@ -148,8 +148,10 @@ class MainActivity : AppCompatActivity() {
                     if (steps.isNotEmpty()) {
                         tvExecutionStatus.text = "> ⚡ मोबाइल पर ${steps.size} ऑटोमैटिक एक्शन्स शुरू हो रहे हैं..."
 
-                        // MINIMIZE AutoBot so user sees real action on YouTube / phone screen!
-                        moveTaskToBack(true)
+                        // If the first action is to launch an app, minimize so that app gets focus immediately
+                        if (steps.any { it.action == "launch" }) {
+                            moveTaskToBack(true)
+                        }
 
                         service.executeAiPlan(
                             steps,

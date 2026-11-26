@@ -11,8 +11,8 @@ android {
         applicationId = "com.personal.autobot"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "5.1"
+        versionCode = 7
+        versionName = "5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

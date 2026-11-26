@@ -60,27 +60,79 @@ class AutoBotAccessibilityService : AccessibilityService() {
 
     fun clickAt(x: Float, y: Float, onComplete: (() -> Unit)? = null) {
         val path = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(path, 0, 100)
+        val stroke = GestureDescription.StrokeDescription(path, 0, 150)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
 
-        dispatchGesture(gesture, object : GestureResultCallback() {
+        val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
+                Log.d(TAG, "Gesture Completed successfully at ($x, $y)")
+                onComplete?.invoke()
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                super.onCancelled(gestureDescription)
+                Log.w(TAG, "Gesture Cancelled at ($x, $y)")
                 onComplete?.invoke()
             }
         }, null)
+        Log.d(TAG, "dispatchGesture returned: $dispatched for ($x, $y)")
     }
 
     fun clickByText(targetText: String): Boolean {
         val rootNode = rootInActiveWindow ?: return false
         val nodes = rootNode.findAccessibilityNodeInfosByText(targetText)
         for (node in nodes) {
-            if (node.isClickable) {
-                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            // Find clickable ancestor or self
+            var current: AccessibilityNodeInfo? = node
+            while (current != null) {
+                if (current.isClickable) {
+                    val clicked = current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    Log.d(TAG, "Clicked node for text '$targetText': $clicked")
+                    return true
+                }
+                current = current.parent
+            }
+            // If none was clickable, click at its bounds center
+            val rect = android.graphics.Rect()
+            node.getBoundsInScreen(rect)
+            if (rect.width() > 0 && rect.height() > 0) {
+                clickAt(rect.centerX().toFloat(), rect.centerY().toFloat())
                 return true
-            } else if (node.parent?.isClickable == true) {
-                node.parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                return true
+            }
+        }
+        return false
+    }
+
+    fun clickSearchElement(): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+        // Search by view id containing search or description
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(rootNode)
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            val text = (node.text?.toString() ?: "").lowercase()
+            val desc = (node.contentDescription?.toString() ?: "").lowercase()
+            val viewId = (node.viewIdResourceName?.toString() ?: "").lowercase()
+
+            if (text.contains("search") || desc.contains("search") || viewId.contains("search")) {
+                var current: AccessibilityNodeInfo? = node
+                while (current != null) {
+                    if (current.isClickable) {
+                        current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        return true
+                    }
+                    current = current.parent
+                }
+                val rect = android.graphics.Rect()
+                node.getBoundsInScreen(rect)
+                if (rect.width() > 0 && rect.height() > 0) {
+                    clickAt(rect.centerX().toFloat(), rect.centerY().toFloat())
+                    return true
+                }
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { queue.add(it) }
             }
         }
         return false
@@ -89,6 +141,16 @@ class AutoBotAccessibilityService : AccessibilityService() {
     fun inputText(targetHintOrText: String, textToEnter: String): Boolean {
         val rootNode = rootInActiveWindow ?: return false
         val nodes = rootNode.findAccessibilityNodeInfosByText(targetHintOrText)
+        for (node in nodes) {
+            val arguments = Bundle().apply {
+                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, textToEnter)
+            }
+            if (node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) {
+                return true
+            }
+        }
+        return false
+    }
         for (node in nodes) {
             val arguments = Bundle().apply {
                 putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, textToEnter)
@@ -182,10 +244,15 @@ class AutoBotAccessibilityService : AccessibilityService() {
                         delay(step.durationMs.coerceAtLeast(3000))
                     }
                     "click_text" -> {
-                        val clicked = clickByText(step.target)
+                        val clicked = if (step.target.contains("Search", ignoreCase = true)) {
+                            clickSearchElement() || clickByText(step.target)
+                        } else {
+                            clickByText(step.target)
+                        }
+
                         if (!clicked && step.target.contains("Search", ignoreCase = true)) {
                             val metrics = resources.displayMetrics
-                            // YouTube top search icon is at top right
+                            // YouTube & standard top search icon is top-right
                             clickAt(metrics.widthPixels - 140f, 160f)
                         }
                         delay(step.durationMs.coerceAtLeast(2000))
