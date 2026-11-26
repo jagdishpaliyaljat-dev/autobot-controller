@@ -119,20 +119,32 @@ class AutoBotAccessibilityService : AccessibilityService() {
 
                 when (step.action) {
                     "launch" -> {
-                        // Launch via direct Intent and Uri
                         val pkg = step.target
                         try {
-                            if (pkg.contains("youtube")) {
-                                val ytIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube://")).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            if (pkg.contains("youtube", ignoreCase = true)) {
+                                // 1. Try launching YouTube via native component first
+                                val ytExplicit = packageManager.getLaunchIntentForPackage("com.google.android.youtube")?.apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                                 }
-                                startActivity(ytIntent)
+                                if (ytExplicit != null) {
+                                    startActivity(ytExplicit)
+                                } else {
+                                    val ytIntent = Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube://")).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    }
+                                    startActivity(ytIntent)
+                                }
                             } else {
                                 val launchIntent = packageManager.getLaunchIntentForPackage(pkg)?.apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                                 }
                                 if (launchIntent != null) {
                                     startActivity(launchIntent)
+                                } else {
+                                    val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse("package:$pkg")).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    startActivity(viewIntent)
                                 }
                             }
                         } catch (e: Exception) {
